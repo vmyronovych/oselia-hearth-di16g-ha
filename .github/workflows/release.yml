@@ -1,0 +1,43 @@
+name: Release
+
+# Publish a HACS release. Create a GitHub Release on a `v*` tag (UI or
+# `gh release create vX.Y.Z`) and this stamps the tag version into manifest.json,
+# zips the component, and attaches `oselia.zip` -- the asset HACS installs
+# (hacs.json sets zip_release). The tag is the single source of version truth, so
+# the committed manifest version can't drift from what ships. See RELEASING.md.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Syntax check (release gate)
+        run: python -m py_compile custom_components/oselia/*.py
+
+      - name: Stamp version + build oselia.zip
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          V="${TAG#v}"
+          python -c "import json,sys; p='custom_components/oselia/manifest.json'; m=json.load(open(p)); m['version']=sys.argv[1]; json.dump(m,open(p,'w'),indent=2); open(p,'a').write(chr(10)); print('stamped version',m['version'])" "$V"
+          ( cd custom_components/oselia && \
+            zip -r "$GITHUB_WORKSPACE/oselia.zip" . -x '*__pycache__*' -x '*.pyc' )
+
+      - name: Attach oselia.zip to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" "$GITHUB_WORKSPACE/oselia.zip" --clobber

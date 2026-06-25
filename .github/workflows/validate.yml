@@ -1,0 +1,29 @@
+name: Validate
+
+# HA-recommended validation for a HACS custom integration: hassfest (manifest +
+# integration schema) and the HACS action (repository structure / hacs.json / brands).
+# Runs on every push + PR, and daily so upstream hassfest/HACS changes surface early.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+jobs:
+  hassfest:
+    name: hassfest
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: home-assistant/actions/hassfest@master
+
+  hacs:
+    name: HACS
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration

@@ -1,0 +1,42 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "OSELIA Hearth",
+        "description": "Connect to the MQTT broker your Hearth gateways use. The gateways are discovered automatically from their retained topics.",
+        "data": {
+          "broker": "Broker host",
+          "port": "Port",
+          "username": "Username",
+          "password": "Password",
+          "base_topic": "Base topic"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Failed to connect to the broker",
+      "invalid_auth": "Invalid broker username or password"
+    },
+    "abort": {
+      "already_configured": "This broker is already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "OSELIA Hearth options",
+        "data": {
+          "release_url": "Firmware release feed URL",
+          "github_token": "GitHub token (private repos)"
+        },
+        "data_description": {
+          "release_url": "A manifest JSON URL, or a GitHub Releases API URL (https://api.github.com/repos/OWNER/REPO/releases/latest). Drives the Firmware update entity.",
+          "github_token": "Only for a PRIVATE GitHub repo: a fine-grained token with read-only Contents access. Stored in Home Assistant; the gateway never sees it."
+        }
+      }
+    },
+    "error": {
+      "feed_error": "Could not read the firmware release feed: {error}"
+    }
+  }
+}
