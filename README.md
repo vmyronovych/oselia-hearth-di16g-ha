@@ -26,6 +26,28 @@ the generic MQTT integration) and gains a native firmware **`update`** entity fo
 
 Updates then arrive in HACS automatically on each new release.
 
+#### Don't have HACS yet?
+
+HACS is a one-time install (it's the store this integration is distributed through).
+
+1. **Download HACS** onto the HA host:
+   - **HA OS / Supervised** — open the **Terminal & SSH** add-on and run:
+     ```sh
+     wget -O - https://get.hacs.xyz | bash -
+     ```
+   - **Docker / Container** — run the same script *inside* the HA container:
+     ```sh
+     docker exec -it homeassistant bash -c "wget -O - https://get.hacs.xyz | bash -"
+     ```
+     (replace `homeassistant` with your container name)
+   - Either way it drops HACS into `config/custom_components/hacs`.
+2. **Restart Home Assistant**, then hard-refresh your browser (Ctrl/Cmd-Shift-R).
+3. **Settings → Devices & Services → Add integration → HACS**, accept the prompts.
+4. **Authorize with GitHub**: open <https://github.com/login/device> and enter the code HACS shows.
+5. HACS now appears in the sidebar — continue from step 1 above.
+
+> Full upstream guide: <https://hacs.xyz/docs/use/download/download/>.
+
 ### Manual
 
 Copy `custom_components/oselia/` into your HA `config/custom_components/`, restart HA, and
