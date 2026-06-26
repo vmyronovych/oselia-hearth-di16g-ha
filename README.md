@@ -19,12 +19,20 @@ the generic MQTT integration) and gains a native firmware **`update`** entity fo
 
 ### HACS (recommended)
 
-1. HACS → ⋮ → **Custom repositories**.
-2. Repository: `https://github.com/vmyronovych/oselia-hearth-di16g-ha`, category **Integration**.
-3. Install **OSELIA Hearth**, then restart Home Assistant.
-4. **Settings → Devices & Services → Add integration → OSELIA Hearth**, point it at your broker.
+1. In Home Assistant, open **HACS** (sidebar) → top-right **⋮** → **Custom repositories**.
+2. Paste `https://github.com/vmyronovych/oselia-hearth-di16g-ha`, set category **Integration**, click **Add**, then close the dialog.
+3. **Download the integration into Home Assistant:**
+   1. In HACS, search for **OSELIA Hearth** and open its page (it shows up after step 2).
+   2. Click **Download** (bottom-right), keep the latest version, and confirm **Download**.
+      This copies the files into `config/custom_components/oselia` — it does **not** load them yet.
+   3. **Restart Home Assistant** so it loads the new integration:
+      **Settings → System → ⏻ (top-right) → Restart Home Assistant**
+      (or Developer Tools → **Actions** → run `homeassistant.restart`).
+4. After the restart: **Settings → Devices & Services → Add integration**, search
+   **OSELIA Hearth**, and point it at your broker.
 
-Updates then arrive in HACS automatically on each new release.
+Updates then arrive in HACS automatically on each new release (download the update in HACS,
+then restart HA again — same as step 3).
 
 #### Don't have HACS yet?
 
