@@ -39,6 +39,6 @@ HACS reads the version from the manifest inside that zip, so what installs match
 - **Beta channel:** mark a release as a *prerelease* (e.g. `v0.3.0-rc1`); HACS only offers
   prereleases to users who opt into betas for the repository.
 - **Firmware vs integration:** gateway firmware ships separately from the
-  [main project](https://github.com/vmyronovych/oselia) via its own OTA flow. If a firmware
-  change alters the MQTT wire format or adds entities, cut a matching integration release
-  (and mirror it in the provisioning tool there).
+  [firmware repo](https://github.com/vmyronovych/oselia-hearth-di16g-firmware) via its own
+  OTA flow. If a firmware change alters the MQTT wire format or adds entities, cut a matching
+  integration release (and mirror it in the provisioning tool there).

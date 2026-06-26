@@ -7,7 +7,7 @@ are merged there, HA shows a broken-image placeholder for the `oselia` domain. T
 **no local override**; submitting these is the only way to get the logo on the device
 page. (The dashboard logo, by contrast, is embedded directly and already works.)
 
-Generated from the hearth logo SVG in the [main project](https://github.com/vmyronovych/oselia)
+Generated from the hearth logo SVG in the [firmware repo](https://github.com/vmyronovych/oselia-hearth-di16g-firmware/blob/main/homeassistant/hearth_logo.svg)
 (the hearth mark for `icon`, the full lockup for
 `logo`), transparent background:
 

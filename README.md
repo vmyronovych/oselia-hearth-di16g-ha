@@ -9,10 +9,11 @@ First-party Home Assistant integration for the **OSELIA Hearth (DI16-G)** gatewa
 24 V wall-switch input hub. The device appears under **its own OSELIA integration** (not
 the generic MQTT integration) and gains a native firmware **`update`** entity for OTA.
 
-> Firmware, hardware and provisioning live in the main project:
-> **[vmyronovych/oselia](https://github.com/vmyronovych/oselia)**
-> (design contract: [`INTEGRATION_SPEC.md`](https://github.com/vmyronovych/oselia/blob/main/dib-rp2040-eth-i2c/homeassistant/INTEGRATION_SPEC.md);
-> OTA core: [`OTA_SPEC.md`](https://github.com/vmyronovych/oselia/blob/main/dib-rp2040-eth-i2c/firmware/OTA_SPEC.md)).
+> Firmware and the provisioning installer live in
+> **[vmyronovych/oselia-hearth-di16g-firmware](https://github.com/vmyronovych/oselia-hearth-di16g-firmware)**
+> (design contract: [`INTEGRATION_SPEC.md`](https://github.com/vmyronovych/oselia-hearth-di16g-firmware/blob/main/homeassistant/INTEGRATION_SPEC.md);
+> OTA core: [`OTA_SPEC.md`](https://github.com/vmyronovych/oselia-hearth-di16g-firmware/blob/main/firmware/OTA_SPEC.md)).
+> Hardware and system architecture live in **[vmyronovych/oselia](https://github.com/vmyronovych/oselia)**.
 
 ## Install
 
