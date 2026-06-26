@@ -1,8 +1,8 @@
 # OSELIA Hearth — Home Assistant integration
 
-[![Validate](https://github.com/vmyronovych/oselia-hearth-di16g/actions/workflows/validate.yml/badge.svg)](https://github.com/vmyronovych/oselia-hearth-di16g/actions/workflows/validate.yml)
+[![Validate](https://github.com/vmyronovych/oselia-hearth-di16g-ha/actions/workflows/validate.yml/badge.svg)](https://github.com/vmyronovych/oselia-hearth-di16g-ha/actions/workflows/validate.yml)
 [![HACS Custom](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://hacs.xyz)
-[![Release](https://img.shields.io/github/v/release/vmyronovych/oselia-hearth-di16g)](https://github.com/vmyronovych/oselia-hearth-di16g/releases)
+[![Release](https://img.shields.io/github/v/release/vmyronovych/oselia-hearth-di16g-ha)](https://github.com/vmyronovych/oselia-hearth-di16g-ha/releases)
 [![License: GPL-3.0](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 
 First-party Home Assistant integration for the **OSELIA Hearth (DI16-G)** gateway — a
@@ -20,7 +20,7 @@ the generic MQTT integration) and gains a native firmware **`update`** entity fo
 ### HACS (recommended)
 
 1. HACS → ⋮ → **Custom repositories**.
-2. Repository: `https://github.com/vmyronovych/oselia-hearth-di16g`, category **Integration**.
+2. Repository: `https://github.com/vmyronovych/oselia-hearth-di16g-ha`, category **Integration**.
 3. Install **OSELIA Hearth**, then restart Home Assistant.
 4. **Settings → Devices & Services → Add integration → OSELIA Hearth**, point it at your broker.
 
