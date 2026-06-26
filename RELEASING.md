@@ -27,6 +27,38 @@ gateway firmware.
 
 HACS reads the version from the manifest inside that zip, so what installs matches the tag.
 
+## Testing the update cycle
+
+To verify the full GitHub → HACS → HA path end to end (the integration's analog of firmware
+OTA). A version bump alone is enough — no code change is required.
+
+1. **Note the installed version.** HACS → *OSELIA Hearth* shows the current version.
+2. **Cut a test release** one patch above it (see *Cut a release* above), e.g.:
+   ```sh
+   gh release create v0.1.1 --generate-notes --title "v0.1.1"
+   ```
+3. **Verify the asset built.** The `release` workflow must finish and attach `oselia.zip`
+   with the stamped version inside:
+   ```sh
+   gh run watch "$(gh run list --workflow=release.yml -L1 --json databaseId -q '.[0].databaseId')" --exit-status
+   gh release view v0.1.1 --json assets -q '.assets[].name'   # -> oselia.zip
+   ```
+4. **Make HACS notice it.** HACS doesn't poll instantly — force it: HACS → top-right
+   **⋮ → Update information** (or restart HA, which refreshes HACS on startup).
+5. **Update.** *OSELIA Hearth* now shows **update available** → **Update/Download** →
+   **restart Home Assistant** when prompted. The restart is mandatory: HACS only swaps the
+   files; HA loads the new Python on restart (unlike firmware OTA, nothing happens until then).
+6. **Confirm.** HACS shows the new version and the device + entities (including
+   `update.hearth_<id>_firmware`) come back after the restart.
+
+**Beta path:** to exercise the prerelease channel, cut the release as a *prerelease*
+(`gh release create v0.2.0-rc1 --prerelease …`); HACS only offers it after you enable
+**Show beta versions** for the repo (its ⋮ menu).
+
+**Cleanup:** a pure cycle test bumps the public "latest". To roll it back, delete the test
+release and tag (`gh release delete v0.1.1 --cleanup-tag`) so the previous release is latest
+again.
+
 ## Distribution
 
 - **Now:** users add this repo as a HACS *custom repository* (category: Integration).
