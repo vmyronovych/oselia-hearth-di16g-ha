@@ -152,5 +152,5 @@ class OseliaUpdate(OseliaEntity, UpdateEntity):
                 self.hass, self._client, self._gw,
                 self._manifest["version"], bundle,
             )
-        except OtaError as err:
+        except (OtaError, FeedError) as err:
             raise HomeAssistantError(f"OTA failed: {err}") from err

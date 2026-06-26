@@ -78,30 +78,65 @@ def _auth_headers(token: str | None, accept: str | None = None) -> dict:
     return h
 
 
+async def _fetch_bytes(
+    hass: HomeAssistant, url: str, token: str | None, accept: str, timeout: int
+) -> bytes:
+    """GET `url` and return the body, mapping any failure to FeedError.
+
+    Authenticates with `token` when one is given. If an *authenticated* request is
+    rejected with 401/403 -- e.g. a leftover or over-scoped token pointed at a now
+    PUBLIC repo -- it retries once WITHOUT the token, so a public feed keeps working
+    even when a stale token lingers in the options. The auth error is surfaced only if
+    the unauthenticated retry ALSO fails, so a genuinely PRIVATE repo still gets a clear
+    token message instead of a misleading "up to date".
+    """
+    session = async_get_clientsession(hass)
+    attempts = [token, None] if token else [None]
+    auth_err: aiohttp.ClientResponseError | None = None
+    for i, attempt_token in enumerate(attempts):
+        try:
+            async with session.get(
+                url, headers=_auth_headers(attempt_token, accept), timeout=timeout
+            ) as resp:
+                resp.raise_for_status()
+                return await resp.read()
+        except aiohttp.ClientResponseError as err:
+            # A denied token request, with a tokenless retry still to come -> retry.
+            if err.status in (401, 403) and attempt_token is not None and i + 1 < len(attempts):
+                auth_err = err
+                _LOGGER.debug(
+                    "OSELIA feed: token rejected (HTTP %s) for %s; retrying unauthenticated",
+                    err.status, url,
+                )
+                continue
+            raise FeedError(_http_error_message(err)) from err
+        except (aiohttp.ClientError, asyncio.TimeoutError) as err:
+            raise FeedError(f"Could not reach the release feed {url}: {err}") from err
+    # The loop always returns or raises above; this is just for completeness.
+    raise FeedError(_http_error_message(auth_err))  # pragma: no cover
+
+
 async def async_fetch_manifest(
     hass: HomeAssistant, url: str, token: str | None = None
 ) -> dict:
     """Fetch + normalize the latest-firmware manifest.
 
     Accepts either a plain manifest JSON (`{version, url, ...}`) OR a GitHub Releases
-    API object (`https://api.github.com/repos/<o>/<r>/releases/latest`). The API form is
-    needed for a PRIVATE repo: with `token` we read the `manifest.json` asset for
-    metadata and use the `.bundle` asset's authenticated API URL for the download.
+    API object (`https://api.github.com/repos/<o>/<r>/releases/latest`). For the API
+    form we read the `manifest.json` asset for metadata and use the `.bundle` asset's
+    API URL for the download; these work without a token on a PUBLIC repo and with a
+    `token` on a PRIVATE one (a stale token on a public repo is handled -- see
+    `_fetch_bytes`).
 
     Raises FeedError (with an installer-facing message) on any failure -- the caller
     surfaces it instead of silently treating "no update found" the same as "up to date".
     """
-    session = async_get_clientsession(hass)
+    raw = await _fetch_bytes(hass, url, token, "application/vnd.github+json", 15)
+    import json as _json
     try:
-        async with session.get(
-            url, headers=_auth_headers(token, "application/vnd.github+json"), timeout=15
-        ) as resp:
-            resp.raise_for_status()
-            data = await resp.json(content_type=None)
-    except aiohttp.ClientResponseError as err:
-        raise FeedError(_http_error_message(err)) from err
-    except (aiohttp.ClientError, asyncio.TimeoutError) as err:
-        raise FeedError(f"Could not reach the release feed {url}: {err}") from err
+        data = _json.loads(raw)
+    except ValueError as err:
+        raise FeedError(f"Release feed {url} did not return valid JSON.") from err
     if isinstance(data, dict) and "tag_name" in data and "assets" in data:
         return await _manifest_from_release(hass, data, token)
     if isinstance(data, dict) and "version" in data and "url" in data:
@@ -141,13 +176,9 @@ async def _manifest_from_release(hass, release: dict, token: str | None) -> dict
 
 async def _download_json_asset(hass, url: str, token: str | None) -> dict | None:
     try:
-        session = async_get_clientsession(hass)
-        async with session.get(
-            url, headers=_auth_headers(token, "application/octet-stream"), timeout=15
-        ) as resp:
-            resp.raise_for_status()
-            import json as _json
-            return _json.loads(await resp.read())
+        raw = await _fetch_bytes(hass, url, token, "application/octet-stream", 15)
+        import json as _json
+        return _json.loads(raw)
     except Exception as err:  # noqa: BLE001
         _LOGGER.debug("OSELIA manifest asset fetch failed: %s", err)
         return None
@@ -156,13 +187,10 @@ async def _download_json_asset(hass, url: str, token: str | None) -> dict | None
 async def async_download_bundle(
     hass: HomeAssistant, url: str, token: str | None = None
 ) -> bytes:
-    """Download the firmware bundle (a GitHub asset API URL works with the token)."""
-    session = async_get_clientsession(hass)
-    async with session.get(
-        url, headers=_auth_headers(token, "application/octet-stream"), timeout=60
-    ) as resp:
-        resp.raise_for_status()
-        return await resp.read()
+    """Download the firmware bundle. A GitHub asset API URL works without a token on a
+    PUBLIC repo and with the token on a PRIVATE one; a stale token that 401s is retried
+    unauthenticated (see _fetch_bytes)."""
+    return await _fetch_bytes(hass, url, token, "application/octet-stream", 60)
 
 
 async def async_run_ota(

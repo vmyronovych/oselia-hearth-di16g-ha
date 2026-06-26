@@ -31,7 +31,7 @@
         },
         "data_description": {
           "release_url": "A manifest JSON URL, or a GitHub Releases API endpoint for the latest release. Drives the Firmware update entity.",
-          "github_token": "Only for a PRIVATE GitHub repo: a fine-grained token with read-only Contents access. Stored in Home Assistant; the gateway never sees it."
+          "github_token": "Only for a PRIVATE GitHub repo: a fine-grained token with read-only Contents access. Leave blank for a public repo. Stored in Home Assistant; the gateway never sees it."
         }
       }
     },
