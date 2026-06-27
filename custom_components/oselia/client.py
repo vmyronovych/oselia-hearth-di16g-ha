@@ -158,11 +158,13 @@ class OseliaClient:
         # asyncio.current_task(), which needs a running task context -- a plain
         # call_soon_threadsafe callback has none and trips "no running event loop".
         asyncio.run_coroutine_threadsafe(
-            self._async_handle(msg.topic, payload), self.hass.loop
+            self._async_handle(msg.topic, payload, msg.retain), self.hass.loop
         )
 
     # ---- message handling (event loop task) ------------------------------
-    async def _async_handle(self, topic: str, payload: str) -> None:
+    async def _async_handle(
+        self, topic: str, payload: str, retain: bool = False
+    ) -> None:
         parts = topic.split("/")
         if len(parts) < 3 or parts[0] != self._base:
             return
@@ -196,6 +198,16 @@ class OseliaClient:
             )
             return  # NAK feeds the active install only -- no general update signal
         elif len(rest) == 3 and rest[0].startswith("board") and rest[2] == "action":
+            # A gesture is a momentary event, never state. A RETAINED action is a stale
+            # copy the broker replays to us the instant we (re)subscribe -- e.g. after a
+            # gateway Restart churns the connection. Acting on it would re-fire the event
+            # entity / device-trigger and run the user's blueprint automations, flipping
+            # relays out of nowhere. Drop retained actions; only live gestures count.
+            if retain:
+                _LOGGER.debug(
+                    "OSELIA ignoring retained action on %s (stale gesture replay)", topic
+                )
+                return
             self._handle_action(gw, rest, payload)
             return  # actions are events, not state -- no general update signal
         else:
