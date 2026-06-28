@@ -75,12 +75,43 @@ add the integration as above.
 - **Events** — one `event` per wall-switch input (`single`/`double`/`long`).
 - **Device triggers** — per input `button_short_press` / `button_double_press` /
   `button_long_press`, so they appear in the automation "Device → Trigger" picker.
-- **Diagnostics** — uptime, free memory, temperature, reconnects, dropped events, boards
-  online, board addresses, last input, IP, Ethernet link.
+- **Diagnostics** — uptime, free memory, temperature, reconnects, dropped events, input
+  boards (+ boards responding), board addresses, last input, IP, Ethernet link.
+- **Per-MCP health** (firmware ≥ 0.7.0) — a **"Board N MCP"** connectivity sensor and a
+  **"Board N MCP error"** sensor (state = error code, with the raw detail/fail/recovery
+  counts as attributes) for every input board, so a single down chip is visible without
+  hiding the others' inputs.
+- **Root-cause Diagnostics entity** — one **"Diagnostics"** sensor whose state is the
+  health summary (`ok`/`degraded`/`mcp_fault`/`net_fault`) and whose *attributes* are the
+  full structured `diag/state` blob (per-board MCP, counters, `reset_cause`, and a
+  `recent[]` fault timeline). This is the canonical, copy-pasteable export artifact.
+- **Fault timeline** — a **"Fault"** `event` entity that fires on each `diag/event`, so
+  faults appear in the HA **logbook** as a timeline, and **recovery counters**
+  (`INT stuck events`, `I2C bus recoveries`, `MCP resets`) as `total_increasing` sensors
+  for long-term statistics.
 - **Controls** — Restart / Identify buttons; gesture-timing numbers; log-level select.
 - **Firmware update** — native OTA card; `latest_version` from a GitHub release feed.
   OTA is **implemented and hardware-verified end to end** (download→verify→apply→
   boot-confirm, with auto-revert on a bad image), driven from the `update` card.
+
+> **Firmware coupling.** The per-MCP health, counters, `reset_cause`, fault timeline, and
+> the Download-Diagnostics richness require **firmware ≥ 0.7.0**. On older firmware those
+> fields are simply absent and the corresponding entities stay empty/unknown — the
+> integration still works (the wire contract is additive).
+
+## Diagnose a problem & export it to Claude
+
+When something goes wrong but MQTT is still up, the root cause is visible in HA and
+exportable for firmware debugging:
+
+1. **One-click (recommended):** the Hearth **device page → ⋮ → Download diagnostics**
+   produces a redacted JSON (broker secrets stripped) with the full `diag/state` blob,
+   per-board MCP health, counters, `reset_cause`, and the `recent[]` fault timeline. Send
+   that file to Claude.
+2. **Fastest:** **Developer Tools → States →** the **Diagnostics** entity → copy its
+   attributes JSON.
+3. **Trend:** the History/Statistics of the counter sensors (e.g. *INT stuck events*)
+   shows how often a fault recurs over time.
 
 ## Resilience
 

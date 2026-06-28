@@ -18,7 +18,11 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from . import OseliaConfigEntry
 from .client import Gateway, OseliaClient
 from .const import DOMAIN, MANUFACTURER, SIGNAL_CONNECTION
-from .entity import OseliaEntity, setup_gateway_entities
+from .entity import (
+    OseliaEntity,
+    setup_gateway_entities,
+    setup_per_board_entities,
+)
 
 
 async def async_setup_entry(
@@ -35,6 +39,13 @@ async def async_setup_entry(
         async_add_entities,
         lambda client, gw: [OseliaEthernet(client, gw)],
     )
+    # Per-board MCP connectivity, added as the resolved board count grows.
+    setup_per_board_entities(
+        hass,
+        entry,
+        async_add_entities,
+        lambda client, gw, board: [OseliaBoardMcp(client, gw, board)],
+    )
 
 
 class OseliaEthernet(OseliaEntity, BinarySensorEntity):
@@ -49,6 +60,27 @@ class OseliaEthernet(OseliaEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool | None:
         return self._gw.diag.get("eth")
+
+
+class OseliaBoardMcp(OseliaEntity, BinarySensorEntity):
+    """Per-board MCP23017 connectivity (from diag/state.mcp[board-1].ok). ON = the
+    chip is responding; OFF = down (see the matching "Board N MCP error" sensor)."""
+
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, client: OseliaClient, gateway: Gateway, board: int) -> None:
+        super().__init__(client, gateway)
+        self._board = board
+        self._attr_name = f"Board {board} MCP"
+        self._attr_unique_id = f"hearth_{gateway.device_id}_board{board}_mcp"
+
+    @property
+    def is_on(self) -> bool | None:
+        rec = self._gw.mcp_board(self._board)
+        if not rec:
+            return None
+        return bool(rec.get("ok"))
 
 
 class OseliaBrokerConnection(BinarySensorEntity):

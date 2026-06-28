@@ -6,6 +6,7 @@ boards become known (SIGNAL_NEW_INPUTS) and never removed if the count dips.
 from __future__ import annotations
 
 from homeassistant.components.event import EventDeviceClass, EventEntity
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
@@ -13,13 +14,15 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import OseliaConfigEntry
 from .client import Gateway, OseliaClient
 from .const import (
+    FAULT_CODES,
     GESTURES,
     PINS_PER_CHIP,
     SIGNAL_ACTION,
+    SIGNAL_FAULT,
     SIGNAL_NEW_GATEWAY,
     SIGNAL_NEW_INPUTS,
 )
-from .entity import OseliaEntity
+from .entity import OseliaEntity, setup_gateway_entities
 
 
 async def async_setup_entry(
@@ -66,6 +69,14 @@ async def async_setup_entry(
         async_dispatcher_connect(hass, SIGNAL_NEW_GATEWAY, _on_new_gateway)
     )
 
+    # One device-level fault event entity per gateway (fires on diag/event).
+    setup_gateway_entities(
+        hass,
+        entry,
+        async_add_entities,
+        lambda client, gw: [OseliaFaultEvent(client, gw)],
+    )
+
 
 class OseliaInputEvent(OseliaEntity, EventEntity):
     """One wall-switch input as an HA event entity."""
@@ -102,4 +113,48 @@ class OseliaInputEvent(OseliaEntity, EventEntity):
         if gesture not in GESTURES:
             return
         self._trigger_event(gesture)
+        self.async_write_ha_state()
+
+
+class OseliaFaultEvent(OseliaEntity, EventEntity):
+    """Device-level fault event: fires on each diag/event record so faults appear in
+    the HA logbook as a timeline. event_type = the fault `code`; component/detail/board
+    ride as attributes. Unknown codes map to "other" so a new firmware code never
+    breaks the entity."""
+
+    _attr_device_class = EventDeviceClass.BUTTON
+    _attr_event_types = list(FAULT_CODES)
+    _attr_icon = "mdi:alert-circle"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_name = "Fault"
+
+    def __init__(self, client: OseliaClient, gateway: Gateway) -> None:
+        super().__init__(client, gateway)
+        self._attr_unique_id = f"hearth_{gateway.device_id}_fault"
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self.async_on_remove(
+            async_dispatcher_connect(
+                self.hass,
+                SIGNAL_FAULT.format(self._gw.device_id),
+                self._on_fault,
+            )
+        )
+
+    @callback
+    def _on_fault(self, fault: dict) -> None:
+        code = fault.get("code") or "other"
+        if code not in FAULT_CODES:
+            code = "other"
+        self._trigger_event(
+            code,
+            {
+                "component": fault.get("component"),
+                "detail": fault.get("detail"),
+                "board": fault.get("board"),
+                "ts": fault.get("ts"),
+                "code": fault.get("code"),
+            },
+        )
         self.async_write_ha_state()
