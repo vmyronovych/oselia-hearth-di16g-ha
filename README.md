@@ -87,8 +87,8 @@ add the integration as above.
   `recent[]` fault timeline). This is the canonical, copy-pasteable export artifact.
 - **Fault timeline** — a **"Fault"** `event` entity that fires on each `diag/event`, so
   faults appear in the HA **logbook** as a timeline, and **recovery counters**
-  (`INT stuck events`, `I2C bus recoveries`, `MCP resets`) as `total_increasing` sensors
-  for long-term statistics.
+  (`I2C bus recoveries`, `MCP resets`) as `total_increasing` sensors for long-term
+  statistics.
 - **Controls** — Restart / Identify buttons; gesture-timing numbers; log-level select.
 - **Firmware update** — native OTA card; `latest_version` from a GitHub release feed.
   OTA is **implemented and hardware-verified end to end** (download→verify→apply→
@@ -110,8 +110,8 @@ exportable for firmware debugging:
    that file to Claude.
 2. **Fastest:** **Developer Tools → States →** the **Diagnostics** entity → copy its
    attributes JSON.
-3. **Trend:** the History/Statistics of the counter sensors (e.g. *INT stuck events*)
-   shows how often a fault recurs over time.
+3. **Trend:** the History/Statistics of the counter sensors (e.g. *I2C bus recoveries*,
+   *MCP resets*) shows how often a fault recurs over time.
 
 ## Resilience
 

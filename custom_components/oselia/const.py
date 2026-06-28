@@ -43,7 +43,7 @@ PLATFORMS = [
 # and diag/event `code`). Used as the fault event entity's event_types. "other" is a
 # catch-all so a code added on the firmware side never breaks the event entity.
 FAULT_CODES = (
-    "i2c_eio", "i2c_timeout", "mcp_absent", "mcp_init_fail", "int_stuck",
+    "i2c_eio", "i2c_timeout", "mcp_absent", "mcp_init_fail",
     "bus_recovered", "mcp_reset", "eth_link_lost", "mqtt_disconnect",
     "mqtt_connack_refused", "other",
 )

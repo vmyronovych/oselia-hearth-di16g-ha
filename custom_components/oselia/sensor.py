@@ -86,13 +86,8 @@ SENSORS: tuple[OseliaSensorDescription, ...] = (
         key="reset_cause", json_key="reset_cause", name="Last reset cause",
         icon="mdi:restart-alert", entity_category=EntityCategory.DIAGNOSTIC,
     ),
-    # Recovery/fault counters (fw >= 0.7.0; nested under diag/state.counters). Total-
+    # Recovery counters (fw >= 0.7.0; nested under diag/state.counters). Total-
     # increasing so HA keeps long-term statistics -- watch how often each recurs.
-    OseliaSensorDescription(
-        key="int_stuck", counter_key="int_stuck", name="INT stuck events",
-        state_class=SensorStateClass.TOTAL_INCREASING, icon="mdi:alert-octagon",
-        entity_category=EntityCategory.DIAGNOSTIC,
-    ),
     OseliaSensorDescription(
         key="bus_recoveries", counter_key="bus_recoveries", name="I2C bus recoveries",
         state_class=SensorStateClass.TOTAL_INCREASING, icon="mdi:bus-alert",
