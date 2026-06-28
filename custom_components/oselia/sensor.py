@@ -23,12 +23,18 @@ from homeassistant.core import HomeAssistant
 
 from . import OseliaConfigEntry
 from .client import Gateway, OseliaClient
-from .entity import OseliaEntity, setup_gateway_entities
+from .entity import (
+    OseliaEntity,
+    setup_gateway_entities,
+    setup_per_board_entities,
+)
 
 
 @dataclass(frozen=True, kw_only=True)
 class OseliaSensorDescription(SensorEntityDescription):
     json_key: str = ""
+    # If set, read from diag/state["counters"][counter_key] instead of a top-level key.
+    counter_key: str = ""
     # Optional transform applied to the raw JSON value before display.
     transform: callable | None = None
 
@@ -69,8 +75,28 @@ SENSORS: tuple[OseliaSensorDescription, ...] = (
         entity_category=EntityCategory.DIAGNOSTIC,
     ),
     OseliaSensorDescription(
-        key="boards", json_key="boards", name="Input boards online",
+        key="boards", json_key="boards", name="Input boards",
         icon="mdi:chip", entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    OseliaSensorDescription(
+        key="boards_ok", json_key="boards_ok", name="Input boards responding",
+        icon="mdi:chip", entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    OseliaSensorDescription(
+        key="reset_cause", json_key="reset_cause", name="Last reset cause",
+        icon="mdi:restart-alert", entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    # Recovery counters (fw >= 0.7.0; nested under diag/state.counters). Total-
+    # increasing so HA keeps long-term statistics -- watch how often each recurs.
+    OseliaSensorDescription(
+        key="bus_recoveries", counter_key="bus_recoveries", name="I2C bus recoveries",
+        state_class=SensorStateClass.TOTAL_INCREASING, icon="mdi:bus-alert",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    OseliaSensorDescription(
+        key="mcp_resets", counter_key="mcp_resets", name="MCP resets",
+        state_class=SensorStateClass.TOTAL_INCREASING, icon="mdi:restart",
+        entity_category=EntityCategory.DIAGNOSTIC,
     ),
     OseliaSensorDescription(
         key="board_addrs", json_key="board_addrs", name="Board addresses",
@@ -93,11 +119,18 @@ async def async_setup_entry(
     entry: OseliaConfigEntry,
     async_add_entities,
 ) -> None:
-    setup_gateway_entities(
+    def _gateway_sensors(client, gw):
+        yield OseliaDiagnostics(client, gw)
+        for d in SENSORS:
+            yield OseliaSensor(client, gw, d)
+
+    setup_gateway_entities(hass, entry, async_add_entities, _gateway_sensors)
+    # Per-board "last error" sensors, added as the resolved board count grows.
+    setup_per_board_entities(
         hass,
         entry,
         async_add_entities,
-        lambda client, gw: (OseliaSensor(client, gw, d) for d in SENSORS),
+        lambda client, gw, board: [OseliaBoardError(client, gw, board)],
     )
 
 
@@ -114,9 +147,75 @@ class OseliaSensor(OseliaEntity, SensorEntity):
 
     @property
     def native_value(self):
-        value = self._gw.diag.get(self.entity_description.json_key)
+        desc = self.entity_description
+        if desc.counter_key:
+            counters = self._gw.diag.get("counters")
+            value = counters.get(desc.counter_key) if isinstance(counters, dict) else None
+        else:
+            value = self._gw.diag.get(desc.json_key)
         if value is None:
             return None
-        if self.entity_description.transform is not None:
-            return self.entity_description.transform(value)
+        if desc.transform is not None:
+            return desc.transform(value)
         return value
+
+
+class OseliaDiagnostics(OseliaEntity, SensorEntity):
+    """Single structured Diagnostics entity: state = the `health` summary, attributes
+    = the entire diag/state blob. This is the canonical, copy-pasteable root-cause
+    artifact -- export it from Developer Tools -> States, or via Download Diagnostics.
+    """
+
+    _attr_name = "Diagnostics"
+    _attr_icon = "mdi:stethoscope"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, client: OseliaClient, gateway: Gateway) -> None:
+        super().__init__(client, gateway)
+        self._attr_unique_id = f"hearth_{gateway.device_id}_diagnostics"
+
+    @property
+    def native_value(self):
+        # "ok" / "degraded" / "mcp_fault" / "net_fault"; "unknown" before first diag.
+        return self._gw.diag.get("health", "unknown") if self._gw.diag else "unknown"
+
+    @property
+    def extra_state_attributes(self):
+        return self._gw.diag or None
+
+
+class OseliaBoardError(OseliaEntity, SensorEntity):
+    """Per-board MCP last-error sensor: state = the error `code` ("ok" when healthy),
+    with the raw detail + counters as attributes."""
+
+    _attr_icon = "mdi:alert-circle-outline"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+
+    def __init__(self, client: OseliaClient, gateway: Gateway, board: int) -> None:
+        super().__init__(client, gateway)
+        self._board = board
+        self._attr_name = f"Board {board} MCP error"
+        self._attr_unique_id = f"hearth_{gateway.device_id}_board{board}_mcp_error"
+
+    @property
+    def native_value(self):
+        rec = self._gw.mcp_board(self._board)
+        if not rec:
+            return None
+        if rec.get("ok"):
+            return "ok"
+        return rec.get("code") or "fault"
+
+    @property
+    def extra_state_attributes(self):
+        rec = self._gw.mcp_board(self._board)
+        if not rec:
+            return None
+        return {
+            "addr": rec.get("addr"),
+            "ok": rec.get("ok"),
+            "detail": rec.get("detail"),
+            "fails": rec.get("fails"),
+            "last_ok_s": rec.get("last_ok_s"),
+            "recoveries": rec.get("recoveries"),
+        }

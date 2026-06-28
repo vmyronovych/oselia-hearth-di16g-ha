@@ -14,6 +14,7 @@ from .const import (
     DOMAIN,
     MANUFACTURER,
     SIGNAL_GATEWAY_UPDATE,
+    SIGNAL_NEW_BOARDS,
     SIGNAL_NEW_GATEWAY,
 )
 
@@ -40,6 +41,59 @@ def setup_gateway_entities(
         _add(device_id)
     entry.async_on_unload(
         async_dispatcher_connect(hass, SIGNAL_NEW_GATEWAY, _add)
+    )
+
+
+@callback
+def setup_per_board_entities(
+    hass: HomeAssistant,
+    entry,
+    async_add_entities: AddEntitiesCallback,
+    factory: Callable[[OseliaClient, Gateway, int], Iterable[Entity]],
+) -> None:
+    """Add per-board entities as the gateway's board count becomes known/grows.
+
+    `factory(client, gateway, board)` returns this platform's entities for one board
+    (1-based). Called once per (gateway, board); never removed if the count dips, so
+    a transiently-down board doesn't churn the registry. Mirrors the per-input
+    pattern in event.py but keyed on SIGNAL_NEW_BOARDS (= boards_total).
+    """
+    client: OseliaClient = entry.runtime_data
+    created: set[tuple[str, int]] = set()
+
+    @callback
+    def _add(device_id: str, boards_total: int) -> None:
+        gw = client.gateways[device_id]
+        new: list[Entity] = []
+        for board in range(1, boards_total + 1):
+            key = (device_id, board)
+            if key in created:
+                continue
+            created.add(key)
+            new.extend(factory(client, gw, board))
+        if new:
+            async_add_entities(new)
+
+    @callback
+    def _on_new_gateway(device_id: str) -> None:
+        gw = client.gateways[device_id]
+        if gw.boards_total:
+            _add(device_id, gw.boards_total)
+
+        @callback
+        def _boards_changed(boards_total: int) -> None:
+            _add(device_id, boards_total)
+
+        entry.async_on_unload(
+            async_dispatcher_connect(
+                hass, SIGNAL_NEW_BOARDS.format(device_id), _boards_changed
+            )
+        )
+
+    for device_id in list(client.gateways):
+        _on_new_gateway(device_id)
+    entry.async_on_unload(
+        async_dispatcher_connect(hass, SIGNAL_NEW_GATEWAY, _on_new_gateway)
     )
 
 

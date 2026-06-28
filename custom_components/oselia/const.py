@@ -39,11 +39,25 @@ PLATFORMS = [
     Platform.UPDATE,
 ]
 
+# --- fault-code taxonomy (mirrors firmware/src/mcp_health.py; the diag `code` field
+# and diag/event `code`). Used as the fault event entity's event_types. "other" is a
+# catch-all so a code added on the firmware side never breaks the event entity.
+FAULT_CODES = (
+    "i2c_eio", "i2c_timeout", "mcp_absent", "mcp_init_fail",
+    "bus_recovered", "mcp_reset", "eth_link_lost", "mqtt_disconnect",
+    "mqtt_connack_refused", "other",
+)
+
 # --- dispatcher signals ---
 # Fired once when a gateway is first seen on the broker (payload: device_id).
 SIGNAL_NEW_GATEWAY = f"{DOMAIN}_new_gateway"
 # Fired when a gateway's input/board count is known or grows (per device_id).
 SIGNAL_NEW_INPUTS = DOMAIN + "_new_inputs_{}"
+# Fired when a gateway's resolved board count is known or grows (per device_id;
+# payload: boards_total). Drives the per-board MCP health entities.
+SIGNAL_NEW_BOARDS = DOMAIN + "_new_boards_{}"
+# Fired on a diag/event fault record (per device_id; payload: the fault dict).
+SIGNAL_FAULT = DOMAIN + "_fault_{}"
 # Fired when any of a gateway's state (status/diag/cfg/ota/log) changes (per device_id).
 SIGNAL_GATEWAY_UPDATE = DOMAIN + "_update_{}"
 # Fired on an input action/gesture (per device_id; payload: (board, pin, gesture)).

@@ -24,7 +24,9 @@ from .const import (
     PINS_PER_CHIP,
     SIGNAL_ACTION,
     SIGNAL_CONNECTION,
+    SIGNAL_FAULT,
     SIGNAL_GATEWAY_UPDATE,
+    SIGNAL_NEW_BOARDS,
     SIGNAL_NEW_GATEWAY,
     SIGNAL_NEW_INPUTS,
     SIGNAL_OTA_NAK,
@@ -50,10 +52,21 @@ class Gateway:
         self.ota: dict = {}
         self.log: dict = {}
         self.boards = 0  # number of input boards known (boards * 16 = inputs)
+        self.boards_total = 0  # resolved board count (drives per-board MCP entities)
+        self.mcp: list = []  # per-board MCP health from diag/state.mcp (fw >= 0.7.0)
 
     @property
     def sw_version(self) -> str | None:
         return self.diag.get("fw")
+
+    def mcp_board(self, board: int) -> dict:
+        """Per-board MCP health record (1-based) from diag/state.mcp, or {}."""
+        idx = board - 1
+        if 0 <= idx < len(self.mcp):
+            rec = self.mcp[idx]
+            if isinstance(rec, dict):
+                return rec
+        return {}
 
     @property
     def ip(self) -> str | None:
@@ -123,6 +136,7 @@ class OseliaClient:
             f"{b}/+/status",
             f"{b}/+/diag/state",
             f"{b}/+/diag/log",
+            f"{b}/+/diag/event",
             f"{b}/+/cfg",
             f"{b}/+/ota/state",
             f"{b}/+/ota/nak",
@@ -184,6 +198,17 @@ class OseliaClient:
             self._apply_diag(gw, payload)
         elif rest == ["diag", "log"]:
             gw.log = _safe_json(payload)
+        elif rest == ["diag", "event"]:
+            # A fault is a momentary event (non-retained). A retained copy on
+            # (re)subscribe would be a stale replay -- drop it, like actions.
+            if retain:
+                return
+            fault = _safe_json(payload)
+            if fault:
+                async_dispatcher_send(
+                    self.hass, SIGNAL_FAULT.format(device_id), fault
+                )
+            return  # events are not state -- no general update signal
         elif rest == ["cfg"]:
             gw.cfg = _safe_json(payload)
         elif rest == ["ota", "state"]:
@@ -226,6 +251,7 @@ class OseliaClient:
 
     def _apply_diag(self, gw: Gateway, payload: str) -> None:
         gw.diag = _safe_json(payload)
+        gw.mcp = gw.diag.get("mcp") if isinstance(gw.diag.get("mcp"), list) else []
         boards = gw.diag.get("boards") or 0
         # `boards` can read 0 transiently if the MCPs aren't answering; only grow the
         # known input set, never shrink it, so entities don't churn.
@@ -233,6 +259,14 @@ class OseliaClient:
             gw.boards = boards
             async_dispatcher_send(
                 self.hass, SIGNAL_NEW_INPUTS.format(gw.device_id), boards
+            )
+        # Resolved board count (fw >= 0.7.0; falls back to `boards`) drives the
+        # per-board MCP health entities -- grow-only, same as inputs.
+        boards_total = gw.diag.get("boards_total") or boards
+        if boards_total > gw.boards_total:
+            gw.boards_total = boards_total
+            async_dispatcher_send(
+                self.hass, SIGNAL_NEW_BOARDS.format(gw.device_id), boards_total
             )
 
     def _handle_action(self, gw: Gateway, rest: list[str], payload: str) -> None:
