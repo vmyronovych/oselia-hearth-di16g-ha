@@ -1,7 +1,7 @@
 """Live-tunable gesture timings (number entities) -> <base>/<id>/cmd/<key> = <ms>.
 
-State reflects the retained <base>/<id>/cfg JSON. Mirrors firmware
-ha_discovery.TUNABLE_NUMBERS; the firmware clamps inbound values to the same limits.
+State reflects the retained <base>/<id>/cfg JSON. The firmware clamps inbound values to
+firmware/src/ha_discovery.py TUNABLE_LIMITS -- keep the min/max below in sync with it.
 """
 from __future__ import annotations
 

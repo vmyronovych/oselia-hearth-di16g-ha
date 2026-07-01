@@ -1,6 +1,7 @@
 """Control buttons (Restart / Identify) -> <base>/<id>/cmd/<name> = PRESS.
 
-Mirrors firmware/src/ha_discovery.py COMMAND_BUTTONS.
+The firmware dispatches these commands by name (net_task `_on_cmd`); the `…/cmd/*`
+topics are the stable contract (see firmware/docs/mqtt-contract.md).
 """
 from __future__ import annotations
 
