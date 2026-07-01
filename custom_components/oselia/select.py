@@ -1,8 +1,8 @@
 """Log-level select -> <base>/<id>/cmd/log_level = <LEVEL>.
 
 The retained cfg JSON stores log_level as an integer index into LOG_LEVELS (matching
-firmware ha_discovery.LOG_LEVEL_OPTIONS and its value_template); the command publishes
-the level name, which the firmware parses.
+firmware ha_discovery.LOG_LEVEL_OPTIONS); the command publishes the level name, which
+the firmware parses.
 """
 from __future__ import annotations
 
